@@ -1,12 +1,20 @@
+package main
+
+import (
+    "log"
+    "os"
+    "bufio"
+)
 
 func init() {
     // Fill the empty elements of the array with nop instructions.
     for k, v := range instructions {
         if v == nil {
             opcode := k
-            instrucitons[k] = func(gb *Gameboy) {
+            instructions[k] = func(gb *Gameboy) {
                 log.Printf("Unimplemented opcode: %#2x", opcode)
-                os.Exit(1)
+                // pauses the program until the user insert a new line
+                bufio.NewReader(os.Stdin).ReadBytes('\n')
             }
         }
     }
