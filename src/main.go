@@ -18,7 +18,9 @@ func main() {
         os.Exit(1)
     }
 
-    fmt.Println(data)
+    var mem Memory
+    mem.Init(data)
+    fmt.Println(mem.CRom)
 }
 
 func ReadROM(path string) ([]byte, error) {
