@@ -72,7 +72,7 @@ const char *cart_type_string() {
 }
 
 const char *cart_license_code_string() {
-    switch (cart.header->new_license_code) {
+    switch (cart.header->old_license_code) {
 	case 0x00: return "None";
 	case 0x01: return "Nintendo R&D1";
 	case 0x08: return "Capcom";
@@ -143,7 +143,7 @@ void log_cartridge_info() {
     printf("Type: %2.2x (%s)\n", cart.header->type, cart_type_string());
     printf("ROM Size: %d KB\n", 32 << cart.header->rom_size);
     printf("RAM Size: %2.2x\n", cart.header->ram_size);
-    printf("License Code: %2.2x (%s)\n", cart.header->new_license_code, cart_license_code_string());
+    printf("License Code: %2.2x (%s)\n", cart.header->old_license_code, cart_license_code_string());
     printf("ROM Version: %2.2x\n\n", cart.header->version);
 }
 
@@ -180,6 +180,63 @@ bool load_cartridge(const char *filename) {
 
     printf("[*] Cartridge loaded.\n");
     log_cartridge_info();
+    return true;
+}
+
+u8 mbus_read(u16 addr) {
+    if (addr < 0x8000) {
+        return cart.rom_data[addr];
+    }
+}
+
+typedef struct {
+    union { 
+        u16 af;
+        struct { u8 a; u8 f; };
+    };
+    union {
+        u16 bc;
+        struct { u8 b; u8 c; };
+    };
+    union {
+        u16 de;
+        struct { u8 d; u8 e; };
+    };
+    union {
+        u16 hl;
+        struct { u8 h; u8 l; };
+    };
+    u16 sp;
+    u16 pc;
+} Register_File;
+
+typedef struct {
+    Register_File rf;
+} CPU;
+
+CPU cpu;
+
+void init_cpu() {
+    cpu.rf.pc = 0x100;
+}
+
+bool cpu_step() {
+    printf("About to execute opcode 0x%2.2x at 0x%2.2x\n", mbus_read(cpu.rf.pc), cpu.rf.pc);
+    switch (cart.rom_data[cpu.rf.pc++]) {
+    case 0x00: { // NOP
+    } break;
+    case 0xC3: { // JP NZ,a16
+        u16 jaddr = mbus_read(cpu.rf.pc);
+        jaddr |= (mbus_read(cpu.rf.pc + 1) << 8);
+        cpu.rf.pc = jaddr;
+    } break;
+    default: {
+        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
+        cpu.rf.pc++;
+        return false;
+    }
+    }
+    return true;
 }
 
 int main(int argc, char **argv) {
@@ -192,5 +249,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "[!] Unable to load Cartridge.\n");
         exit(1);
     }
+
+    init_cpu();
+    while (cpu_step());
     return 0;
 }
