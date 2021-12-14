@@ -174,8 +174,9 @@ bool load_cartridge(const char *filename) {
         x = x - cart.rom_data[i] - 1;
     }
     if ((x & 0xFF) != cart.header->checksum) {
-        fprintf(stderr, "[!] The checksum dosen't match.\n");
-        return false;
+        fprintf(stderr, "[!] The checksum dosen't match. Expected %2.2x, got %2.2x\n", 
+            cart.header->checksum, x);
+        //return false;
     }
 
     printf("[*] Cartridge loaded.\n");
@@ -210,29 +211,47 @@ typedef struct {
     u16 pc;
 } Register_File;
 
+#define bit(n, b) ((n & (1 << 7)) >> 7)
+#define zero_flag() (bit(cpu.rf.f, 7))
+
+#define pc_reg (cpu.rf.pc)
+#define af_reg (cpu.rf.af)
+#define bc_reg (cpu.rf.bc)
+#define de_reg (cpu.rf.de)
+#define hl_reg (cpu.rf.hl)
+#define sp_reg (cpu.rf.sp)
+
 typedef struct {
     Register_File rf;
+    bool halted;
 } CPU;
 
 CPU cpu;
 
 void init_cpu() {
     cpu.rf.pc = 0x100;
+    cpu.halted = false;
 }
 
 bool cpu_step() {
-    printf("About to execute opcode 0x%2.2x at 0x%2.2x\n", mbus_read(cpu.rf.pc), cpu.rf.pc);
-    switch (cart.rom_data[cpu.rf.pc++]) {
+    if (cpu.halted) return false;
+    //printf("About to execute opcode 0x%2.2x at 0x%2.2x\n", mbus_read(cpu.rf.pc), cpu.rf.pc);
+    printf("AF: %2.2x\tBC: %2.2x\tDE: %2.2x\tHL: %2.2x\tSP: %2.2x\n",
+        af_reg, bc_reg, de_reg, hl_reg, sp_reg);
+    printf("> %2.2x: %2.2x %2.2x %2.2x\n\n", pc_reg, mbus_read(pc_reg), mbus_read(pc_reg+1), mbus_read(pc_reg+2));
+    switch (cart.rom_data[pc_reg++]) {
     case 0x00: { // NOP
     } break;
     case 0xC3: { // JP NZ,a16
-        u16 jaddr = mbus_read(cpu.rf.pc);
-        jaddr |= (mbus_read(cpu.rf.pc + 1) << 8);
-        cpu.rf.pc = jaddr;
+        if (!zero_flag()) {
+            u16 jaddr = mbus_read(pc_reg);
+            jaddr |= (mbus_read(pc_reg + 1) << 8);
+            pc_reg = jaddr;
+        }
     } break;
     default: {
-        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
-        cpu.rf.pc++;
+        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[pc_reg-1]);
+        pc_reg++;
         return false;
     }
     }
