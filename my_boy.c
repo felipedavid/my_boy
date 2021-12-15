@@ -147,12 +147,12 @@ void log_cartridge_info() {
     printf("ROM Version: %2.2x\n\n", cart.header->version);
 }
 
-bool load_cartridge(const char *filename) {
+void load_cartridge(const char *filename) {
     // Open file
     FILE *fp = fopen(filename, "r");
     if (fp == NULL) {
         fprintf(stderr, "[!] Unable to open file \"%s\".", filename);
-        return false;
+        exit(1);
     }
 
     // Get file size
@@ -165,6 +165,8 @@ bool load_cartridge(const char *filename) {
     fread(cart.rom_data, cart.rom_size, 1, fp);
     fclose(fp);
 
+    // TODO: Check if it is a valid ROM
+
     cart.header = (Cartridge_Header *) (cart.rom_data + 0x100);
     cart.header->title[15] = 0; // Null terminate game's title
 
@@ -176,12 +178,10 @@ bool load_cartridge(const char *filename) {
     if ((x & 0xFF) != cart.header->checksum) {
         fprintf(stderr, "[!] The checksum dosen't match. Expected %2.2x, got %2.2x\n", 
             cart.header->checksum, x);
-        //return false;
     }
 
     printf("[*] Cartridge loaded.\n");
     log_cartridge_info();
-    return true;
 }
 
 u8 mbus_read(u16 addr) {
@@ -211,47 +211,76 @@ typedef struct {
     u16 pc;
 } Register_File;
 
-#define bit(n, b) ((n & (1 << 7)) >> 7)
-#define zero_flag() (bit(cpu.rf.f, 7))
+#define bit(n, b) ((n & (1 << b)) >> b)
+#define set_bit(n, b) (n |= (1 << b))
+#define unset_bit(n, b) (n &= (~(1 << b)))
 
-#define pc_reg (cpu.rf.pc)
-#define af_reg (cpu.rf.af)
-#define bc_reg (cpu.rf.bc)
-#define de_reg (cpu.rf.de)
-#define hl_reg (cpu.rf.hl)
-#define sp_reg (cpu.rf.sp)
+#define get_z_flag() (bit(cpu.rf.f, 7))
+#define set_z_flag() (set_bit(cpu.rf.f, 7))
+#define unset_z_flag() (unset_bit(cpu.rf.f, 7))
+
+#define get_n_flag() (bit(cpu.rf.f, 6))
+#define set_n_flag() (set_bit(cpu.rf.f, 6))
+#define unset_n_flag() (unset_bit(cpu.rf.f, 6))
+
+#define get_h_flag() (bit(cpu.rf.f, 5))
+#define set_h_flag() (set_bit(cpu.rf.f, 5))
+#define unset_h_flag() (unset_bit(cpu.rf.f, 5))
+
+#define get_c_flag() (bit(cpu.rf.f, 4))
+#define set_c_flag() (set_bit(cpu.rf.f, 4))
+#define unset_c_flag() (unset_bit(cpu.rf.f, 4))
 
 typedef struct {
     Register_File rf;
     bool halted;
+    bool disable_interrupts;
 } CPU;
 
 CPU cpu;
 
 void init_cpu() {
     cpu.rf.pc = 0x100;
+    cpu.rf.a = 0x1;
     cpu.halted = false;
 }
 
 bool cpu_step() {
     if (cpu.halted) return false;
-    //printf("About to execute opcode 0x%2.2x at 0x%2.2x\n", mbus_read(cpu.rf.pc), cpu.rf.pc);
+
     printf("AF: %2.2x\tBC: %2.2x\tDE: %2.2x\tHL: %2.2x\tSP: %2.2x\n",
-        af_reg, bc_reg, de_reg, hl_reg, sp_reg);
-    printf("> %2.2x: %2.2x %2.2x %2.2x\n\n", pc_reg, mbus_read(pc_reg), mbus_read(pc_reg+1), mbus_read(pc_reg+2));
-    switch (cart.rom_data[pc_reg++]) {
+        cpu.rf.af, cpu.rf.bc, cpu.rf.de, cpu.rf.hl, cpu.rf.sp);
+    printf("> %2.2x: %2.2x %2.2x %2.2x\n\n", 
+        cpu.rf.pc, mbus_read(cpu.rf.pc), mbus_read(cpu.rf.pc+1), mbus_read(cpu.rf.pc+2));
+
+    switch (cart.rom_data[cpu.rf.pc++]) {
     case 0x00: { // NOP
     } break;
+    case 0x31: { // LD SP,d16
+        cpu.rf.sp = mbus_read(cpu.rf.pc);
+        cpu.rf.sp |= (mbus_read(cpu.rf.pc + 1) << 8);
+        cpu.rf.pc += 2;
+    }; break;
+    case 0xAF: { // XOR A
+       cpu.rf.a = 0;
+       unset_z_flag();
+       unset_n_flag();
+       unset_h_flag();
+       unset_c_flag();
+    }; break;
     case 0xC3: { // JP NZ,a16
-        if (!zero_flag()) {
-            u16 jaddr = mbus_read(pc_reg);
-            jaddr |= (mbus_read(pc_reg + 1) << 8);
-            pc_reg = jaddr;
+        if (!get_z_flag()) {
+            u16 jaddr = mbus_read(cpu.rf.pc);
+            jaddr |= (mbus_read(cpu.rf.pc + 1) << 8);
+            cpu.rf.pc = jaddr;
         }
     } break;
+    case 0xF3: {
+        cpu.disable_interrupts = false;
+    } break;
     default: {
-        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[pc_reg-1]);
-        pc_reg++;
+        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
+        cpu.rf.pc++;
         return false;
     }
     }
@@ -264,11 +293,7 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
-    if (!load_cartridge(argv[1])) {
-        fprintf(stderr, "[!] Unable to load Cartridge.\n");
-        exit(1);
-    }
-
+    load_cartridge(argv[1]);
     init_cpu();
     while (cpu_step());
     return 0;
