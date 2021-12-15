@@ -138,6 +138,265 @@ const char *cart_license_code_string() {
     }
 }
 
+const char *inst_mm[] = {
+    "NOP",
+    "LD BC,d16",
+    "LD (BC),A",
+    "INC BC",
+    "INC B",
+    "DEC B",
+    "LD B,d8",
+    "RLCA",
+    "LD (a16),SP",
+    "ADD HL,BC",
+    "LD A,(BC)",
+    "DEC BC",
+    "INC C",
+    "DEC C",
+    "LD C,d8",
+    "RRCA",
+    "STOP 0",
+    "LD DE,d16",
+    "LD (DE),A",
+    "INC DE",
+    "INC D",
+    "DEC D",
+    "LD D,d8",
+    "RLA",
+    "JR r8",
+    "ADD HL,DE",
+    "LD A,(DE)",
+    "DEC DE",
+    "INC E",
+    "DEC E",
+    "LD E,d8",
+    "RRA",
+    "JR NZ,r8",
+    "LD HL,d16",
+    "LD (HL+),A",
+    "INC HL",
+    "INC H",
+    "DEC H",
+    "LD H,d8",
+    "DAA",
+    "JR Z,r8",
+    "ADD HL,HL",
+    "LD A,(HL+)",
+    "DEC HL",
+    "INC L",
+    "DEC L",
+    "LD L,d8",
+    "CPL",
+    "JR NC,r8",
+    "LD SP,d16",
+    "LD (HL-),A",
+    "INC SP",
+    "INC (HL)",
+    "DEC (HL)",
+    "LD (HL),d8",
+    "SCF",
+    "JR C,r8",
+    "ADD HL,SP",
+    "LD A,(HL-)",
+    "DEC SP",
+    "INC A",
+    "DEC A",
+    "LD A,d8",
+    "CCF",
+    "LD B,B",
+    "LD B,C",
+    "LD B,D",
+    "LD B,E",
+    "LD B,H",
+    "LD B,L",
+    "LD B,(HL)",
+    "LD B,A",
+    "LD C,B",
+    "LD C,C",
+    "LD C,D",
+    "LD C,E",
+    "LD C,H",
+    "LD C,L",
+    "LD C,(HL)",
+    "LD C,A",
+    "LD D,B",
+    "LD D,C",
+    "LD D,D",
+    "LD D,E",
+    "LD D,H",
+    "LD D,L",
+    "LD D,(HL)",
+    "LD D,A",
+    "LD E,B",
+    "LD E,C",
+    "LD E,D",
+    "LD E,E",
+    "LD E,H",
+    "LD E,L",
+    "LD E,(HL)",
+    "LD E,A",
+    "LD H,B",
+    "LD H,C",
+    "LD H,D",
+    "LD H,E",
+    "LD H,H",
+    "LD H,L",
+    "LD H,(HL)",
+    "LD H,A",
+    "LD L,B",
+    "LD L,C",
+    "LD L,D",
+    "LD L,E",
+    "LD L,H",
+    "LD L,L",
+    "LD L,(HL)",
+    "LD L,A",
+    "LD (HL),B",
+    "LD (HL),C",
+    "LD (HL),D",
+    "LD (HL),E",
+    "LD (HL),H",
+    "LD (HL),L",
+    "HALT",
+    "LD (HL),A",
+    "LD A,B",
+    "LD A,C",
+    "LD A,D",
+    "LD A,E",
+    "LD A,H",
+    "LD A,L",
+    "LD A,(HL)",
+    "LD A,A",
+    "ADD A,B",
+    "ADD A,C",
+    "ADD A,D",
+    "ADD A,E",
+    "ADD A,H",
+    "ADD A,L",
+    "ADD A,(HL)",
+    "ADD A,A",
+    "ADC A,B",
+    "ADC A,C",
+    "ADC A,D",
+    "ADC A,E",
+    "ADC A,H",
+    "ADC A,L",
+    "ADC A,(HL)",
+    "ADC A,A",
+    "SUB B",
+    "SUB C",
+    "SUB D",
+    "SUB E",
+    "SUB H",
+    "SUB L",
+    "SUB (HL)",
+    "SUB A",
+    "SBC A,B",
+    "SBC A,C",
+    "SBC A,D",
+    "SBC A,E",
+    "SBC A,H",
+    "SBC A,L",
+    "SBC A,(HL)",
+    "SBC A,A",
+    "AND B",
+    "AND C",
+    "AND D",
+    "AND E",
+    "AND H",
+    "AND L",
+    "AND (HL)",
+    "AND A",
+    "XOR B",
+    "XOR C",
+    "XOR D",
+    "XOR E",
+    "XOR H",
+    "XOR L",
+    "XOR (HL)",
+    "XOR A",
+    "OR B",
+    "OR C",
+    "OR D",
+    "OR E",
+    "OR H",
+    "OR L",
+    "OR (HL)",
+    "OR A",
+    "CP B",
+    "CP C",
+    "CP D",
+    "CP E",
+    "CP H",
+    "CP L",
+    "CP (HL)",
+    "CP A",
+    "RET NZ",
+    "POP BC",
+    "JP NZ,a16",
+    "JP a16",
+    "CALL NZ,a16",
+    "PUSH BC",
+    "ADD A,d8",
+    "RST 00H",
+    "RET Z",
+    "RET",
+    "JP Z,a16",
+    "PREFIX CB",
+    "CALL Z,a16",
+    "CALL a16",
+    "ADC A,d8",
+    "RST 08H",
+    "RET NC",
+    "POP DE",
+    "JP NC,a16",
+	"NONE",
+    "CALL NC,a16",
+    "PUSH DE",
+    "SUB d8",
+    "RST 10H",
+    "RET C",
+    "RETI",
+    "JP C,a16",
+	"NONE",
+    "CALL C,a16",
+	"NONE",
+    "SBC A,d8",
+    "RST 18H",
+    "LDH (a8),A",
+    "POP HL",
+    "LD (C),A",
+	"NONE",
+	"NONE",
+    "PUSH HL",
+    "AND d8",
+    "RST 20H",
+    "ADD SP,r8",
+    "JP (HL)",
+    "LD (a16),A",
+	"NONE",
+	"NONE",
+	"NONE",
+    "XOR d8",
+    "RST 28H",
+    "LDH A,(a8)",
+    "POP AF",
+    "LD A,(C)",
+    "DI",
+	"NONE",
+    "PUSH AF",
+    "OR d8",
+    "RST 30H",
+    "LD HL,SP+r8",
+    "LD SP,HL",
+    "LD A,(a16)",
+    "EI",
+	"NONE",
+	"NONE",
+    "CP d8",
+    "RST 38H",
+};
+
 void log_cartridge_info() {
     printf("Title: %s\n", cart.header->title);
     printf("Type: %2.2x (%s)\n", cart.header->type, cart_type_string());
@@ -187,6 +446,24 @@ void load_cartridge(const char *filename) {
 u8 mbus_read(u16 addr) {
     if (addr < 0x8000) {
         return cart.rom_data[addr];
+    }
+}
+
+u16 mbus_read16(u16 addr) {
+    u16 v = mbus_read(addr);
+    v |= (mbus_read(addr+1) << 8);
+    return v;
+}
+
+void mbus_write(u16 addr, u8 value) {
+    if (addr < 0x8000) {
+        cart.rom_data[addr] = value;
+    }
+}
+
+void mbus_write16(u16 addr, u16 value) {
+    if (addr < 0x8000) {
+        *(u16 *)(cart.rom_data+addr) = value;
     }
 }
 
@@ -248,17 +525,24 @@ void init_cpu() {
 bool cpu_step() {
     if (cpu.halted) return false;
 
-    printf("AF: %2.2x\tBC: %2.2x\tDE: %2.2x\tHL: %2.2x\tSP: %2.2x\n",
-        cpu.rf.af, cpu.rf.bc, cpu.rf.de, cpu.rf.hl, cpu.rf.sp);
-    printf("> %2.2x: %2.2x %2.2x %2.2x\n\n", 
-        cpu.rf.pc, mbus_read(cpu.rf.pc), mbus_read(cpu.rf.pc+1), mbus_read(cpu.rf.pc+2));
+    printf("AF: %04x   BC: %04x   DE: %04x   HL: %04x   SP: %04x   PC: %04x\n",
+        cpu.rf.af, cpu.rf.bc, cpu.rf.de, cpu.rf.hl, cpu.rf.sp, cpu.rf.pc);
+    printf("> %02x: %02x %02x %02x [%s]\n\n", 
+        cpu.rf.pc, mbus_read(cpu.rf.pc), mbus_read(cpu.rf.pc+1), mbus_read(cpu.rf.pc+2), 
+		inst_mm[mbus_read(cpu.rf.pc)]);
 
     switch (cart.rom_data[cpu.rf.pc++]) {
     case 0x00: { // NOP
     } break;
+    case 0x01: { // LD BC,d16
+        cpu.rf.bc = mbus_read16(cpu.rf.pc);
+        cpu.rf.pc += 2;
+    } break;
+    case 0x02: { // LD (BC),A
+        mbus_write(cpu.rf.pc, cpu.rf.a);
+    } break;
     case 0x31: { // LD SP,d16
-        cpu.rf.sp = mbus_read(cpu.rf.pc);
-        cpu.rf.sp |= (mbus_read(cpu.rf.pc + 1) << 8);
+        cpu.rf.sp = mbus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     }; break;
     case 0xAF: { // XOR A
@@ -269,12 +553,13 @@ bool cpu_step() {
        unset_c_flag();
     }; break;
     case 0xC3: { // JP NZ,a16
-        if (!get_z_flag()) {
-            u16 jaddr = mbus_read(cpu.rf.pc);
-            jaddr |= (mbus_read(cpu.rf.pc + 1) << 8);
-            cpu.rf.pc = jaddr;
-        }
+        if (!get_z_flag()) 
+            cpu.rf.pc = mbus_read16(cpu.rf.pc);
     } break;
+    case 0xEA: { // LD (a16),A
+        u16 addr = mbus_read16(cpu.rf.pc);
+        mbus_write(addr, cpu.rf.a);
+    }; break;
     case 0xF3: {
         cpu.disable_interrupts = false;
     } break;
