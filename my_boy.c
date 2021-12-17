@@ -443,30 +443,6 @@ void load_cartridge(const char *filename) {
     log_cartridge_info();
 }
 
-u8 mbus_read(u16 addr) {
-    if (addr < 0x8000) {
-        return cart.rom_data[addr];
-    }
-}
-
-u16 mbus_read16(u16 addr) {
-    u16 v = mbus_read(addr);
-    v |= (mbus_read(addr+1) << 8);
-    return v;
-}
-
-void mbus_write(u16 addr, u8 value) {
-    if (addr < 0x8000) {
-        cart.rom_data[addr] = value;
-    }
-}
-
-void mbus_write16(u16 addr, u16 value) {
-    if (addr < 0x8000) {
-        *(u16 *)(cart.rom_data+addr) = value;
-    }
-}
-
 typedef struct {
     union { 
         u16 af;
@@ -488,6 +464,71 @@ typedef struct {
     u16 pc;
 } Register_File;
 
+typedef struct {
+    Register_File rf;
+    u8 ie_reg;
+    bool halted;
+    bool disable_interrupts;
+} CPU;
+CPU cpu;
+
+typedef struct {
+    u8 wram[0x2000];
+    u8 hram[0x80];
+} RAM;
+
+RAM ram;
+
+u8 mbus_read(u16 addr) {
+    if (addr < 0x8000) { // ROM Data
+        return cart.rom_data[addr];
+    } else if (addr < 0xA000) { // VRAM
+    } else if (addr < 0xC000) { // External RAM
+        return cart
+    } else if (addr < 0xE000) { // WRAM
+        return ram.wram[addr - 0xC000];
+    } else if (addr < 0xFE00) { // ECHO RAM
+    } else if (addr < 0xFEA0) { // OAM
+    } else if (addr < 0xFF00) { // Not usable
+    } else if (addr < 0xFF80) { // I/O Registers
+    } else if (addr < 0xFFFF) { // High RAM
+        return ram.hram[addr - 0xFF80];
+    } else if (addr == 0xFFFF) { // IE Register
+        return cpu.ie_reg;
+    }
+    fprintf(stderr, "[!] Can't read from address %hx\n\n", addr);
+}
+
+u16 mbus_read16(u16 addr) {
+    u16 v = mbus_read(addr);
+    v |= (mbus_read(addr+1) << 8);
+    return v;
+}
+
+void mbus_write(u16 addr, u8 value) {
+    if (addr < 0x8000) { // ROM Data
+        cart.rom_data[addr] = value;
+    } else if (addr < 0xA000) { // VRAM
+    } else if (addr < 0xC000) { // External RAM
+    } else if (addr < 0xE000) { // WRAM
+        ram.wram[addr - 0xC000] = value;
+    } else if (addr < 0xFE00) { // ECHO RAM
+    } else if (addr < 0xFEA0) { // OAM
+    } else if (addr < 0xFF00) { // Not usable
+    } else if (addr < 0xFF80) { // I/O Registers
+    } else if (addr < 0xFFFF) { // High RAM
+        ram.hram[addr - 0xFF80] = value;
+    } else if (addr == 0xFFFF) { // IE Register
+        cpu.ie_reg = value;
+    }
+    fprintf(stderr, "[!] Can't read from address %hx\n\n", addr);
+}
+
+void mbus_write16(u16 addr, u16 value) {
+    mbus_write(addr, value & 0xFF);
+    mbus_write(addr+1, (value & 0xFF00) >> 8);
+}
+
 #define bit(n, b) ((n & (1 << b)) >> b)
 #define set_bit(n, b) (n |= (1 << b))
 #define unset_bit(n, b) (n &= (~(1 << b)))
@@ -508,13 +549,6 @@ typedef struct {
 #define set_c_flag() (set_bit(cpu.rf.f, 4))
 #define unset_c_flag() (unset_bit(cpu.rf.f, 4))
 
-typedef struct {
-    Register_File rf;
-    bool halted;
-    bool disable_interrupts;
-} CPU;
-
-CPU cpu;
 
 void init_cpu() {
     cpu.rf.pc = 0x100;
