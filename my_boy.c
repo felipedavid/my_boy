@@ -484,7 +484,6 @@ u8 mbus_read(u16 addr) {
         return cart.rom_data[addr];
     } else if (addr < 0xA000) { // VRAM
     } else if (addr < 0xC000) { // External RAM
-        return cart
     } else if (addr < 0xE000) { // WRAM
         return ram.wram[addr - 0xC000];
     } else if (addr < 0xFE00) { // ECHO RAM
@@ -508,20 +507,24 @@ u16 mbus_read16(u16 addr) {
 void mbus_write(u16 addr, u8 value) {
     if (addr < 0x8000) { // ROM Data
         cart.rom_data[addr] = value;
+        return;
     } else if (addr < 0xA000) { // VRAM
     } else if (addr < 0xC000) { // External RAM
     } else if (addr < 0xE000) { // WRAM
         ram.wram[addr - 0xC000] = value;
+        return;
     } else if (addr < 0xFE00) { // ECHO RAM
     } else if (addr < 0xFEA0) { // OAM
     } else if (addr < 0xFF00) { // Not usable
     } else if (addr < 0xFF80) { // I/O Registers
     } else if (addr < 0xFFFF) { // High RAM
         ram.hram[addr - 0xFF80] = value;
+        return;
     } else if (addr == 0xFFFF) { // IE Register
         cpu.ie_reg = value;
+        return;
     }
-    fprintf(stderr, "[!] Can't read from address %hx\n\n", addr);
+    fprintf(stderr, "[!] Can't write to address %hx\n\n", addr);
 }
 
 void mbus_write16(u16 addr, u16 value) {
@@ -575,10 +578,17 @@ bool cpu_step() {
     case 0x02: { // LD (BC),A
         mbus_write(cpu.rf.pc, cpu.rf.a);
     } break;
+    case 0x21: { // LD HL,d16
+        cpu.rf.hl = mbus_read16(cpu.rf.pc);
+        cpu.rf.pc += 2;
+    } break;
     case 0x31: { // LD SP,d16
         cpu.rf.sp = mbus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     }; break;
+    case 0x3E: {
+        cpu.rf.a = mbus_read(cpu.rf.pc++);
+    } break;
     case 0xAF: { // XOR A
        cpu.rf.a = 0;
        unset_z_flag();
@@ -590,9 +600,16 @@ bool cpu_step() {
         if (!get_z_flag()) 
             cpu.rf.pc = mbus_read16(cpu.rf.pc);
     } break;
+    case 0xD6: { // SUB d8
+        cpu.rf.a -= mbus_read(cpu.rf.pc++);
+    } break;
+    case 0xE0: {
+        mbus_write(0xFF00 + mbus_read(cpu.rf.pc++), cpu.rf.a);
+    } break;
     case 0xEA: { // LD (a16),A
         u16 addr = mbus_read16(cpu.rf.pc);
         mbus_write(addr, cpu.rf.a);
+        cpu.rf.pc += 2;
     }; break;
     case 0xF3: {
         cpu.disable_interrupts = false;
