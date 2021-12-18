@@ -498,10 +498,8 @@ u8 mbus_read(u16 addr) {
     fprintf(stderr, "[!] Can't read from address %hx\n\n", addr);
 }
 
-u16 mbus_read16(u16 addr) {
-    u16 v = mbus_read(addr);
-    v |= (mbus_read(addr+1) << 8);
-    return v;
+inline u16 mbus_read16(u16 addr) {
+    return mbus_read(addr) | (mbus_read(addr+1) << 8);
 }
 
 void mbus_write(u16 addr, u8 value) {
@@ -527,9 +525,9 @@ void mbus_write(u16 addr, u8 value) {
     fprintf(stderr, "[!] Can't write to address %hx\n\n", addr);
 }
 
-void mbus_write16(u16 addr, u16 value) {
+inline void mbus_write16(u16 addr, u16 value) {
     mbus_write(addr, value & 0xFF);
-    mbus_write(addr+1, (value & 0xFF00) >> 8);
+    mbus_write(addr+1, value >> 8);
 }
 
 #define bit(n, b) ((n & (1 << b)) >> b)
@@ -603,7 +601,7 @@ bool cpu_step() {
     case 0xD6: { // SUB d8
         cpu.rf.a -= mbus_read(cpu.rf.pc++);
     } break;
-    case 0xE0: {
+    case 0xE0: { // LDH (a8),A
         mbus_write(0xFF00 + mbus_read(cpu.rf.pc++), cpu.rf.a);
     } break;
     case 0xEA: { // LD (a16),A
@@ -621,6 +619,24 @@ bool cpu_step() {
     }
     }
     return true;
+}
+
+inline void stack_push(u8 value) {
+    mbus_write(--cpu.rf.sp, value);
+}
+
+inline u8 stack_pop() {
+    return mbus_read(cpu.rf.sp++);
+}
+
+inline void stach_push16(u16 value) {
+    cpu.rf.sp -= 2;
+    mbus_write16(cpu.rf.sp, value);
+}
+
+inline u16 stack_pop16() {
+    return mbus_read16(cpu.rf.sp);
+    cpu.rf.sp += 2;
 }
 
 int main(int argc, char **argv) {
