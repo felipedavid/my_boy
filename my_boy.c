@@ -479,7 +479,7 @@ typedef struct {
 
 RAM ram;
 
-u8 mbus_read(u16 addr) {
+u8 bus_read(u16 addr) {
     if (addr < 0x8000) { // ROM Data
         return cart.rom_data[addr];
     } else if (addr < 0xA000) { // VRAM
@@ -498,11 +498,11 @@ u8 mbus_read(u16 addr) {
     fprintf(stderr, "[!] Can't read from address %hx\n\n", addr);
 }
 
-inline u16 mbus_read16(u16 addr) {
-    return mbus_read(addr) | (mbus_read(addr+1) << 8);
+inline u16 bus_read16(u16 addr) {
+    return bus_read(addr) | (bus_read(addr+1) << 8);
 }
 
-void mbus_write(u16 addr, u8 value) {
+void bus_write(u16 addr, u8 value) {
     if (addr < 0x8000) { // ROM Data
         cart.rom_data[addr] = value;
         return;
@@ -525,9 +525,9 @@ void mbus_write(u16 addr, u8 value) {
     fprintf(stderr, "[!] Can't write to address %hx\n\n", addr);
 }
 
-inline void mbus_write16(u16 addr, u16 value) {
-    mbus_write(addr, value & 0xFF);
-    mbus_write(addr+1, value >> 8);
+inline void bus_write16(u16 addr, u16 value) {
+    bus_write(addr, value & 0xFF);
+    bus_write(addr+1, value >> 8);
 }
 
 #define bit(n, b) ((n & (1 << b)) >> b)
@@ -550,6 +550,24 @@ inline void mbus_write16(u16 addr, u16 value) {
 #define set_c_flag() (set_bit(cpu.rf.f, 4))
 #define unset_c_flag() (unset_bit(cpu.rf.f, 4))
 
+inline void stack_push(u8 value) {
+    bus_write(--cpu.rf.sp, value);
+}
+
+inline u8 stack_pop() {
+    return bus_read(cpu.rf.sp++);
+}
+
+inline void stack_push16(u16 value) {
+    cpu.rf.sp -= 2;
+    bus_write16(cpu.rf.sp, value);
+}
+
+inline u16 stack_pop16() {
+    u16 v = bus_read16(cpu.rf.sp);
+    cpu.rf.sp += 2;
+    return v;
+}
 
 void init_cpu() {
     cpu.rf.pc = 0x100;
@@ -563,29 +581,35 @@ bool cpu_step() {
     printf("AF: %04x   BC: %04x   DE: %04x   HL: %04x   SP: %04x   PC: %04x\n",
         cpu.rf.af, cpu.rf.bc, cpu.rf.de, cpu.rf.hl, cpu.rf.sp, cpu.rf.pc);
     printf("> %02x: %02x %02x %02x [%s]\n\n", 
-        cpu.rf.pc, mbus_read(cpu.rf.pc), mbus_read(cpu.rf.pc+1), mbus_read(cpu.rf.pc+2), 
-		inst_mm[mbus_read(cpu.rf.pc)]);
+        cpu.rf.pc, bus_read(cpu.rf.pc), bus_read(cpu.rf.pc+1), bus_read(cpu.rf.pc+2), 
+		inst_mm[bus_read(cpu.rf.pc)]);
 
     switch (cart.rom_data[cpu.rf.pc++]) {
     case 0x00: { // NOP
     } break;
     case 0x01: { // LD BC,d16
-        cpu.rf.bc = mbus_read16(cpu.rf.pc);
+        cpu.rf.bc = bus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     } break;
     case 0x02: { // LD (BC),A
-        mbus_write(cpu.rf.pc, cpu.rf.a);
+        bus_write(cpu.rf.pc, cpu.rf.a);
     } break;
     case 0x21: { // LD HL,d16
-        cpu.rf.hl = mbus_read16(cpu.rf.pc);
+        cpu.rf.hl = bus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     } break;
     case 0x31: { // LD SP,d16
-        cpu.rf.sp = mbus_read16(cpu.rf.pc);
+        cpu.rf.sp = bus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     }; break;
     case 0x3E: {
-        cpu.rf.a = mbus_read(cpu.rf.pc++);
+        cpu.rf.a = bus_read(cpu.rf.pc++);
+    } break;
+    case 0x7C: { // LD A,H
+        cpu.rf.a = cpu.rf.h; 
+    } break;
+    case 0x7D: { // LD A,L
+        cpu.rf.a = cpu.rf.l; 
     } break;
     case 0xAF: { // XOR A
        cpu.rf.a = 0;
@@ -594,23 +618,89 @@ bool cpu_step() {
        unset_h_flag();
        unset_c_flag();
     }; break;
+    case 0xC1: { // POP BC
+        cpu.rf.bc = stack_pop16();
+    } break;
     case 0xC3: { // JP NZ,a16
-        if (!get_z_flag()) 
-            cpu.rf.pc = mbus_read16(cpu.rf.pc);
+        if (!get_z_flag()) {
+            cpu.rf.pc = bus_read16(cpu.rf.pc);
+        } else {
+            cpu.rf.pc += 2;
+        }
+    } break;
+    case 0xC4: { // CALL NZ,a16
+        if (!get_z_flag()) {
+            stack_push16(cpu.rf.pc + 2);
+            cpu.rf.pc = bus_read16(cpu.rf.pc);
+        } else {
+            cpu.rf.pc += 2;
+        }
+    } break;
+    case 0xC5: { // PUSH BC
+        stack_push16(cpu.rf.bc);
+    } break;
+    case 0xCD: { // CALL a16
+        stack_push16(cpu.rf.pc + 2);
+        cpu.rf.pc = bus_read16(cpu.rf.pc);
+    } break;
+    case 0xC9: { // RET
+        cpu.rf.pc = stack_pop16(); 
+    } break;
+    case 0xCC: { // CALL Z,a16
+        if (get_z_flag()) {
+            stack_push16(cpu.rf.pc + 2);
+            cpu.rf.pc = bus_read16(cpu.rf.pc);
+        } else {
+            cpu.rf.pc += 2;
+        }
+    } break;
+    case 0xD1: { // POP DE
+        cpu.rf.de = stack_pop16();
+    } break;
+    case 0xD4: { // CALL NC,a16
+        if (!get_c_flag()) {
+            stack_push16(cpu.rf.pc + 2);
+            cpu.rf.pc = bus_read16(cpu.rf.pc);
+        } else {
+            cpu.rf.pc += 2;
+        }
+    } break;
+    case 0xD5: { // PUSH DE
+        stack_push16(cpu.rf.de);
     } break;
     case 0xD6: { // SUB d8
-        cpu.rf.a -= mbus_read(cpu.rf.pc++);
+        cpu.rf.a -= bus_read(cpu.rf.pc++);
+    } break;
+    case 0xDC: { // CALL C,a16
+        if (get_c_flag()) {
+            stack_push16(cpu.rf.pc + 2);
+            cpu.rf.pc = bus_read16(cpu.rf.pc);
+        } else {
+            cpu.rf.pc += 2;
+        }
     } break;
     case 0xE0: { // LDH (a8),A
-        mbus_write(0xFF00 + mbus_read(cpu.rf.pc++), cpu.rf.a);
+        bus_write(0xFF00 + bus_read(cpu.rf.pc++), cpu.rf.a);
+    } break;
+    case 0xE1: { // POP HL
+        cpu.rf.hl = stack_pop16();
+    } break;
+    case 0xE5: { // PUSH HL
+        stack_push16(cpu.rf.hl);
     } break;
     case 0xEA: { // LD (a16),A
-        u16 addr = mbus_read16(cpu.rf.pc);
-        mbus_write(addr, cpu.rf.a);
+        u16 addr = bus_read16(cpu.rf.pc);
+        bus_write(addr, cpu.rf.a);
         cpu.rf.pc += 2;
     }; break;
+    case 0xF1: { // POP AF
+        cpu.rf.af = stack_pop16(); 
+    } break;
     case 0xF3: {
         cpu.disable_interrupts = false;
+    } break;
+    case 0xF5: { // PUSH AF
+        stack_push16(cpu.rf.af);
     } break;
     default: {
         fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
@@ -619,24 +709,6 @@ bool cpu_step() {
     }
     }
     return true;
-}
-
-inline void stack_push(u8 value) {
-    mbus_write(--cpu.rf.sp, value);
-}
-
-inline u8 stack_pop() {
-    return mbus_read(cpu.rf.sp++);
-}
-
-inline void stach_push16(u16 value) {
-    cpu.rf.sp -= 2;
-    mbus_write16(cpu.rf.sp, value);
-}
-
-inline u16 stack_pop16() {
-    return mbus_read16(cpu.rf.sp);
-    cpu.rf.sp += 2;
 }
 
 int main(int argc, char **argv) {
