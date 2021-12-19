@@ -594,16 +594,56 @@ bool cpu_step() {
     case 0x02: { // LD (BC),A
         bus_write(cpu.rf.pc, cpu.rf.a);
     } break;
+    case 0x03: { // INC BC
+        cpu.rf.bc++;
+    } break;
+    case 0x0B: { // DEC BC
+        cpu.rf.bc--;
+    } break;
+    case 0x13: { // INC DE
+        cpu.rf.de++;
+    } break;
+    case 0x18: { // JR r8
+        cpu.rf.pc = (u16)((int)cpu.rf.pc+1 + (int)bus_read(cpu.rf.pc));
+    } break;
+    case 0x1B: { // DEC DE
+        cpu.rf.de--;
+    } break;
     case 0x21: { // LD HL,d16
         cpu.rf.hl = bus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
     } break;
+    case 0x23: { // INC HL
+        cpu.rf.hl++;
+    } break;
+    case 0x28: { // JR Z,r8
+        if (get_z_flag()) {
+            cpu.rf.pc = (u16)((int)cpu.rf.pc+1 + (int)bus_read(cpu.rf.pc));
+        } else {
+            cpu.rf.pc++;
+        }
+    } break;
+    case 0x2A: { // LD A,(HL+)
+        cpu.rf.a = bus_read(cpu.rf.hl++);
+    } break;
+    case 0x2B: { // DEC HL
+        cpu.rf.hl--;
+    } break;
     case 0x31: { // LD SP,d16
         cpu.rf.sp = bus_read16(cpu.rf.pc);
         cpu.rf.pc += 2;
-    }; break;
-    case 0x3E: {
+    } break;
+    case 0x33: { // INC SP
+        cpu.rf.sp++; 
+    } break;
+    case 0x3B: { // DEC SP
+        cpu.rf.sp--;
+    } break;
+    case 0x3E: { // LD A,d8
         cpu.rf.a = bus_read(cpu.rf.pc++);
+    } break;
+    case 0x78: { // LD A,B
+        cpu.rf.a = cpu.rf.b;
     } break;
     case 0x7C: { // LD A,H
         cpu.rf.a = cpu.rf.h; 
@@ -617,7 +657,10 @@ bool cpu_step() {
        unset_n_flag();
        unset_h_flag();
        unset_c_flag();
-    }; break;
+    } break;
+    case 0xB1: { // OR C
+        cpu.rf.a &= cpu.rf.c;
+    } break;
     case 0xC1: { // POP BC
         cpu.rf.bc = stack_pop16();
     } break;
