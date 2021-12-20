@@ -600,6 +600,10 @@ bool cpu_step() {
     case 0x0B: { // DEC BC
         cpu.rf.bc--;
     } break;
+    case 0x11: { // LD DE,d16
+        cpu.rf.de = bus_read16(cpu.rf.pc);
+        cpu.rf.pc += 2;
+    } break;
     case 0x13: { // INC DE
         cpu.rf.de++;
     } break;
@@ -641,6 +645,9 @@ bool cpu_step() {
     } break;
     case 0x3E: { // LD A,d8
         cpu.rf.a = bus_read(cpu.rf.pc++);
+    } break;
+    case 0x47: { // LD B, A
+        cpu.rf.b = cpu.rf.a;
     } break;
     case 0x78: { // LD A,B
         cpu.rf.a = cpu.rf.b;
@@ -736,6 +743,9 @@ bool cpu_step() {
         bus_write(addr, cpu.rf.a);
         cpu.rf.pc += 2;
     }; break;
+    case 0xF0: {
+        cpu.rf.a = bus_read(0xFF00 + bus_read(cpu.rf.pc++));
+    } break;
     case 0xF1: { // POP AF
         cpu.rf.af = stack_pop16(); 
     } break;
@@ -744,6 +754,9 @@ bool cpu_step() {
     } break;
     case 0xF5: { // PUSH AF
         stack_push16(cpu.rf.af);
+    } break;
+    case 0xFE: {
+        fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
     } break;
     default: {
         fprintf(stderr, "Unknown opcode: 0x%2.2x\n", cart.rom_data[cpu.rf.pc-1]);
